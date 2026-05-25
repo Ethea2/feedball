@@ -1,13 +1,14 @@
 package main
 
 import (
-	"fmt"
 	"image"
 	"image/color"
 	"log"
 
+	"github.com/Ethea2/feedball/animation"
 	"github.com/Ethea2/feedball/constants"
 	"github.com/Ethea2/feedball/entities"
+	"github.com/Ethea2/feedball/spritesheet"
 	"github.com/Ethea2/feedball/tiles"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
@@ -15,11 +16,12 @@ import (
 )
 
 type Game struct {
-	player      *entities.Player
-	tilemapJSON *tiles.TilemapJSON
-	tilesets    []tiles.Tileset
-	tilemapImg  *ebiten.Image
-	colliders   []image.Rectangle
+	player            *entities.Player
+	playerSpriteSheet *spritesheet.SpriteSheet
+	tilemapJSON       *tiles.TilemapJSON
+	tilesets          []tiles.Tileset
+	tilemapImg        *ebiten.Image
+	wallsAndFloors    []image.Rectangle
 }
 
 func NewGame() *Game {
@@ -41,13 +43,15 @@ func NewGame() *Game {
 		log.Fatal(err)
 	}
 
-	colliders := tilemapJSON.GenColliders()
+	wallsAndFloors := tilemapJSON.GenColliders()
 
 	playerImg, _, err := ebitenutil.NewImageFromFile("./assets/images/green_character_spritesheet.png")
 
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	playerSpriteSheet := spritesheet.NewSpriteSheet(8, 4, 32)
 
 	return &Game{
 		player: &entities.Player{
@@ -56,56 +60,27 @@ func NewGame() *Game {
 				X:   200.0,
 				Y:   200.0,
 			},
+			Facing: entities.Left,
+			State:  entities.Idle,
+			Animations: map[entities.AnimationKey]*animation.Animation{
+				{State: entities.Idle, Facing: entities.Left}:     animation.NewAnimation(0, 6, 1, 4.0),
+				{State: entities.Idle, Facing: entities.Right}:    animation.NewAnimation(8, 14, 1, 4.0),
+				{State: entities.Jumping, Facing: entities.Left}:  animation.NewAnimation(16, 21, 1, 4.0),
+				{State: entities.Jumping, Facing: entities.Right}: animation.NewAnimation(24, 29, 1, 4.0),
+				{State: entities.Running, Facing: entities.Left}:  animation.NewAnimation(22, 23, 1, 4.0),
+				{State: entities.Running, Facing: entities.Right}: animation.NewAnimation(30, 31, 1, 4.0),
+			},
 		},
-		tilemapJSON: tilemapJSON,
-		tilesets:    tilesets,
-		tilemapImg:  tilemapImg,
-		colliders:   colliders,
+		tilemapJSON:       tilemapJSON,
+		tilesets:          tilesets,
+		tilemapImg:        tilemapImg,
+		wallsAndFloors:    wallsAndFloors,
+		playerSpriteSheet: playerSpriteSheet,
 	}
 }
 
 func (g *Game) Update() error {
-	g.player.Dx = 0.0
-	g.player.Dy = 0.0
-
-	if ebiten.IsKeyPressed(ebiten.KeyLeft) {
-		g.player.Dx = -constants.PlayerSpeed
-	}
-	if ebiten.IsKeyPressed(ebiten.KeyRight) {
-		g.player.Dx = constants.PlayerSpeed
-	}
-	if ebiten.IsKeyPressed(ebiten.KeyUp) {
-		g.player.Jump()
-	}
-	if ebiten.IsKeyPressed(ebiten.KeyDown) {
-		g.player.Dy = constants.PlayerSpeed
-	}
-
-	if g.player.State == entities.Jumping {
-		g.player.JumpTimer -= 0.02
-		g.player.Dy -= constants.PlayerSpeed
-		if g.player.JumpTimer <= 0 {
-			g.player.State = entities.Down
-			g.player.JumpTimer = 0
-		}
-	}
-
-	fmt.Println(g.player.State)
-
-	g.player.X += g.player.Dx
-
-	CheckCollisionHorizontal(g.player.Sprite, g.colliders)
-
-	g.player.Y += g.player.Dy
-
-	if g.player.State == entities.Down {
-		g.player.Dy += constants.PlayerSpeed
-
-		g.player.Y += g.player.Dy
-	}
-
-	CheckCollisionVertical(g.player.Sprite, g.colliders)
-
+	g.player.Update(g.wallsAndFloors)
 	return nil
 }
 
@@ -145,17 +120,19 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 	opts.GeoM.Translate(g.player.X, g.player.Y)
 
-	// draw the player
 	// PlayerSpeed = 5
-	screen.DrawImage(
-		// grab a subimage of the spritesheet
-		g.player.Img.SubImage(
-			image.Rect(0, 0, 32, 32),
-		).(*ebiten.Image),
-		&opts,
-	)
+	anim := g.player.ActiveAnimation()
+	if anim != nil {
+		frame := anim.Frame() // whatever your Animation exposes
+		screen.DrawImage(
+			g.player.Img.SubImage(
+				g.playerSpriteSheet.Rect(frame),
+			).(*ebiten.Image),
+			&opts,
+		)
+	}
 
-	for _, collider := range g.colliders {
+	for _, collider := range g.wallsAndFloors {
 		vector.StrokeRect(
 			screen,
 			float32(collider.Min.X),

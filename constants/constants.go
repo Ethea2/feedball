@@ -7,4 +7,5 @@ const (
 	MapWidth     = 40
 	MapHeight    = 20
 	PlayerSpeed  = 5
+	Gravity      = 0.5
 )
