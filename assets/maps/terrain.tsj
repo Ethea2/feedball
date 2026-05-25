@@ -1,0 +1,14 @@
+{ "columns":10,
+ "image":"..\/images\/terrain.png",
+ "imageheight":160,
+ "imagewidth":320,
+ "margin":0,
+ "name":"terrain",
+ "spacing":0,
+ "tilecount":50,
+ "tiledversion":"1.12.1",
+ "tileheight":32,
+ "tilewidth":32,
+ "type":"tileset",
+ "version":"1.10"
+}

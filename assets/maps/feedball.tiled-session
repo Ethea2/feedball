@@ -1,0 +1,44 @@
+{
+    "activeFile": "basic_map.tmj",
+    "expandedProjectPaths": [
+        "."
+    ],
+    "fileStates": {
+        "basic_map.js": {
+            "scale": 0.912890625,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 639.7261446298673,
+                "y": 319.86307231493373
+            }
+        },
+        "basic_map.tmj": {
+            "scale": 0.912890625,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 639.7261446298673,
+                "y": 319.86307231493373
+            }
+        },
+        "terrain.tsj": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        }
+    },
+    "last.exportedFilePath": "D:/Projects/feedball/assets/maps",
+    "last.imagePath": "D:/Projects/feedball/assets/images",
+    "map.lastUsedExportFilter": "JSON map files (*.tmj *.json)",
+    "map.lastUsedFormat": "json",
+    "map.width": 40,
+    "openFiles": [
+        "basic_map.tmj",
+        "terrain.tsj"
+    ],
+    "project": "feedball.tiled-project",
+    "recentFiles": [
+        "terrain.tsj",
+        "basic_map.tmj",
+        "basic_map.js"
+    ],
+    "tileset.lastUsedFormat": "json"
+}
