@@ -6,4 +6,5 @@ const (
 	ScreenHeight = 640
 	MapWidth     = 40
 	MapHeight    = 20
+	PlayerSpeed  = 5
 )

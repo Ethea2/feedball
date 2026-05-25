@@ -49,7 +49,7 @@ func CheckCollisionVertical(sprite *entities.Sprite, colliders []image.Rectangle
 
 func main() {
 	ebiten.SetWindowSize(constants.ScreenWidth, constants.ScreenHeight)
-	ebiten.SetWindowTitle("Hello, World!")
+	ebiten.SetWindowTitle("FeedBall!")
 	if err := ebiten.RunGame(NewGame()); err != nil {
 		log.Fatal(err)
 	}

@@ -69,21 +69,21 @@ func (g *Game) Update() error {
 	g.player.Dy = 0.0
 
 	if ebiten.IsKeyPressed(ebiten.KeyLeft) {
-		g.player.Dx = -10
+		g.player.Dx = -constants.PlayerSpeed
 	}
 	if ebiten.IsKeyPressed(ebiten.KeyRight) {
-		g.player.Dx = 10
+		g.player.Dx = constants.PlayerSpeed
 	}
 	if ebiten.IsKeyPressed(ebiten.KeyUp) {
 		g.player.Jump()
 	}
 	if ebiten.IsKeyPressed(ebiten.KeyDown) {
-		g.player.Dy = 10
+		g.player.Dy = constants.PlayerSpeed
 	}
 
 	if g.player.State == entities.Jumping {
-		g.player.JumpTimer -= 0.1
-		g.player.Dy -= 10
+		g.player.JumpTimer -= 0.02
+		g.player.Dy -= constants.PlayerSpeed
 		if g.player.JumpTimer <= 0 {
 			g.player.State = entities.Down
 			g.player.JumpTimer = 0
@@ -99,7 +99,7 @@ func (g *Game) Update() error {
 	g.player.Y += g.player.Dy
 
 	if g.player.State == entities.Down {
-		g.player.Dy += 10
+		g.player.Dy += constants.PlayerSpeed
 
 		g.player.Y += g.player.Dy
 	}
@@ -146,6 +146,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	opts.GeoM.Translate(g.player.X, g.player.Y)
 
 	// draw the player
+	// PlayerSpeed = 5
 	screen.DrawImage(
 		// grab a subimage of the spritesheet
 		g.player.Img.SubImage(
