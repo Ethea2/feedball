@@ -65,8 +65,8 @@ func NewGame() *Game {
 			Animations: map[entities.AnimationKey]*animation.Animation{
 				{State: entities.Idle, Facing: entities.Left}:     animation.NewAnimation(0, 6, 1, 4.0),
 				{State: entities.Idle, Facing: entities.Right}:    animation.NewAnimation(8, 14, 1, 4.0),
-				{State: entities.Jumping, Facing: entities.Left}:  animation.NewAnimation(16, 21, 1, 4.0),
-				{State: entities.Jumping, Facing: entities.Right}: animation.NewAnimation(24, 29, 1, 4.0),
+				{State: entities.Jumping, Facing: entities.Left}:  animation.NewAnimation(16, 21, 1, 2.0),
+				{State: entities.Jumping, Facing: entities.Right}: animation.NewAnimation(24, 29, 1, 2.0),
 				{State: entities.Running, Facing: entities.Left}:  animation.NewAnimation(22, 23, 1, 4.0),
 				{State: entities.Running, Facing: entities.Right}: animation.NewAnimation(30, 31, 1, 4.0),
 			},
@@ -86,7 +86,7 @@ func (g *Game) Update() error {
 
 func (g *Game) Draw(screen *ebiten.Image) {
 
-	screen.Fill(color.RGBA{120, 180, 255, 255})
+	screen.Fill(color.RGBA{0, 0, 0, 255})
 
 	opts := ebiten.DrawImageOptions{}
 

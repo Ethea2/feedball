@@ -2,6 +2,7 @@ package entities
 
 import (
 	"image"
+	"math"
 
 	"github.com/Ethea2/feedball/animation"
 	"github.com/Ethea2/feedball/constants"
@@ -45,6 +46,7 @@ func (p *Player) Jump() {
 	p.State = Jumping
 	p.JumpTimer = 1.0
 	p.Dy = -15.0
+
 }
 
 func (p *Player) ActiveAnimation() *animation.Animation {
@@ -64,6 +66,22 @@ func (p *Player) UpdateAnimation() {
 	}
 }
 
+func (p *Player) checkGrounded(wallsAndFloors []image.Rectangle) bool {
+	// Check one pixel below the player's feet
+	feetRect := image.Rect(
+		int(math.Round(p.X)),
+		int(math.Round(p.Y))+constants.TileSize, // bottom edge
+		int(math.Round(p.X))+constants.TileSize,
+		int(math.Round(p.Y))+constants.TileSize+1, // one pixel below
+	)
+	for _, collider := range wallsAndFloors {
+		if collider.Overlaps(feetRect) {
+			return true
+		}
+	}
+	return false
+}
+
 func (p *Player) Update(wallsAndFloors []image.Rectangle) {
 	p.Dx = 0.0
 
@@ -80,19 +98,11 @@ func (p *Player) Update(wallsAndFloors []image.Rectangle) {
 			p.State = Running
 		}
 	} else if p.State != Jumping {
-		p.State = Idle // reset to idle when no keys pressed
+		p.State = Idle
 	}
 
 	if ebiten.IsKeyPressed(ebiten.KeyUp) {
 		p.Jump()
-	}
-
-	if p.State == Jumping {
-		p.JumpTimer -= 0.02
-		if p.JumpTimer <= 0 {
-			p.State = Idle
-			p.JumpTimer = 0
-		}
 	}
 
 	p.Dy += constants.Gravity
@@ -101,7 +111,13 @@ func (p *Player) Update(wallsAndFloors []image.Rectangle) {
 	p.Sprite.CheckCollisionHorizontal(p.Sprite, wallsAndFloors)
 
 	p.Y += p.Dy
+
+	wasGrounded := p.checkGrounded(wallsAndFloors)
 	p.Sprite.CheckCollisionVertical(p.Sprite, wallsAndFloors)
+
+	if p.State == Jumping && wasGrounded && p.Dy >= 0 {
+		p.State = Idle
+	}
 
 	p.UpdateAnimation()
 }
