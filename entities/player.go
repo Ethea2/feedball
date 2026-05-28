@@ -9,6 +9,8 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
+// TODO: fix player bug on substates and rethink the substate solution (could be better if we utilize separate states as bool on player actions.)
+
 type PlayerState uint8
 
 type PlayerFacing uint8
