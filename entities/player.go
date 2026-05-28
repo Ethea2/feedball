@@ -13,14 +13,23 @@ type PlayerState uint8
 
 type PlayerFacing uint8
 
+type PlayerSubstate uint8
+
+// Enum for player states
 const (
 	Idle PlayerState = iota
 	Running
 	Down
 	Jumping
+)
+
+const (
+	SubIdle PlayerSubstate = iota
+	FreeFalling
 	HoldingTheBall
 )
 
+// Enum for where player is facing
 const (
 	Left PlayerFacing = iota
 	Right
@@ -31,12 +40,19 @@ type AnimationKey struct {
 	Facing PlayerFacing
 }
 
+type PlayerInput struct {
+	Left, Right, Jump, Down, Shoot ebiten.Key
+}
+
 type Player struct {
 	*Sprite
-	State      PlayerState
-	Facing     PlayerFacing
-	JumpTimer  float64
-	Animations map[AnimationKey]*animation.Animation
+	State               PlayerState
+	Facing              PlayerFacing
+	SubState            PlayerSubstate
+	JumpTimer           float64
+	Animations          map[AnimationKey]*animation.Animation
+	movementRestricted  bool
+	IsAffectedByGravity bool
 }
 
 func (p *Player) Jump() {
@@ -66,13 +82,12 @@ func (p *Player) UpdateAnimation() {
 	}
 }
 
-func (p *Player) checkGrounded(wallsAndFloors []image.Rectangle) bool {
-	// Check one pixel below the player's feet
+func (p *Player) isGrounded(wallsAndFloors []image.Rectangle) bool {
 	feetRect := image.Rect(
 		int(math.Round(p.X)),
-		int(math.Round(p.Y))+constants.TileSize, // bottom edge
-		int(math.Round(p.X))+constants.TileSize,
-		int(math.Round(p.Y))+constants.TileSize+1, // one pixel below
+		int(math.Round(p.Y))+p.Bounds().Dy(), // bottom edge using Bounds
+		int(math.Round(p.X))+p.Bounds().Dx(),
+		int(math.Round(p.Y))+p.Bounds().Dy()+1, // one pixel below
 	)
 	for _, collider := range wallsAndFloors {
 		if collider.Overlaps(feetRect) {
@@ -82,42 +97,58 @@ func (p *Player) checkGrounded(wallsAndFloors []image.Rectangle) bool {
 	return false
 }
 
-func (p *Player) Update(wallsAndFloors []image.Rectangle) {
+func (p *Player) Update(wallsAndFloors []image.Rectangle, playerInput PlayerInput) {
 	p.Dx = 0.0
 
-	if ebiten.IsKeyPressed(ebiten.KeyLeft) {
+	if ebiten.IsKeyPressed(playerInput.Left) && !p.movementRestricted {
 		p.Dx = -constants.PlayerSpeed
 		p.Facing = Left
 		if p.State != Jumping {
 			p.State = Running
 		}
-	} else if ebiten.IsKeyPressed(ebiten.KeyRight) {
+	} else if ebiten.IsKeyPressed(playerInput.Right) && !p.movementRestricted {
 		p.Dx = constants.PlayerSpeed
 		p.Facing = Right
 		if p.State != Jumping {
 			p.State = Running
 		}
-	} else if p.State != Jumping {
+	} else if p.State != Jumping && !p.movementRestricted {
 		p.State = Idle
 	}
 
-	if ebiten.IsKeyPressed(ebiten.KeyUp) {
+	if ebiten.IsKeyPressed(playerInput.Jump) && p.SubState != FreeFalling {
 		p.Jump()
 	}
 
-	p.Dy += constants.Gravity
+	if p.IsAffectedByGravity {
+		p.Dy += constants.Gravity
+	}
 
 	p.X += p.Dx
 	p.Sprite.CheckCollisionHorizontal(p.Sprite, wallsAndFloors)
 
 	p.Y += p.Dy
-
-	wasGrounded := p.checkGrounded(wallsAndFloors)
 	p.Sprite.CheckCollisionVertical(p.Sprite, wallsAndFloors)
 
-	if p.State == Jumping && wasGrounded && p.Dy >= 0 {
-		p.State = Idle
+	if p.isGrounded(wallsAndFloors) {
+		if p.State == Jumping || p.SubState == FreeFalling {
+			p.State = Idle
+			p.movementRestricted = false
+			p.IsAffectedByGravity = true
+			if p.SubState == HoldingTheBall || p.SubState == FreeFalling {
+				p.SubState = SubIdle
+			}
+		}
 	}
 
+	//Handle freefalling when player not holding ball and is jumping. Should not be accessed if player is already free falling
+	if p.SubState != HoldingTheBall && p.State == Jumping && p.SubState != FreeFalling {
+		if ebiten.IsKeyPressed(playerInput.Down) {
+			p.SubState = FreeFalling
+			p.movementRestricted = true
+			p.IsAffectedByGravity = false
+			p.Dy += constants.PlayerSpeed * 2
+		}
+	}
 	p.UpdateAnimation()
 }

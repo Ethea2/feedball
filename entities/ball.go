@@ -10,4 +10,5 @@ const (
 
 type Ball struct {
 	*Sprite
+	Active bool //ball in play or not? I'M NOT AI MOTHAFUCKA
 }
