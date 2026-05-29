@@ -7,8 +7,8 @@ import (
 	"log"
 
 	"github.com/Ethea2/feedball/animation"
-	"github.com/Ethea2/feedball/constants"
 	"github.com/Ethea2/feedball/entities"
+	"github.com/Ethea2/feedball/shared"
 	"github.com/Ethea2/feedball/spritesheet"
 	"github.com/Ethea2/feedball/tiles"
 	"github.com/hajimehoshi/ebiten/v2"
@@ -48,14 +48,14 @@ func NewGame() *Game {
 	wallsAndFloors := tilemapJSON.GenColliders()
 
 	playerImg, _, err := ebitenutil.NewImageFromFile(
-		"./assets/images/green_character_spritesheet.png",
+		"./assets/images/P1Sheet.png",
 	)
 
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	playerSpriteSheet := spritesheet.NewSpriteSheet(8, 4, 32)
+	playerSpriteSheet := spritesheet.NewSpriteSheet(6, 8, 32)
 
 	ballImg, _, err := ebitenutil.NewImageFromFile("./assets/images/Ball.png")
 
@@ -68,48 +68,85 @@ func NewGame() *Game {
 	return &Game{
 		player: &entities.Player{
 			Sprite: &entities.Sprite{
-				Img:     playerImg,
-				X:       200.0,
-				Y:       200.0,
-				XOffset: -18,
-				YOffset: 0,
+				Img:          playerImg,
+				X:            200.0,
+				Y:            200.0,
+				LeftXOffset:  10,
+				RightXOffset: -10,
+				DownYOffset:  0,
 			},
 			Facing: entities.Left,
 			State:  entities.Idle,
 			Animations: map[entities.AnimationKey]*animation.Animation{
-				{State: entities.Idle, Facing: entities.Left}: animation.NewAnimation(
+				{State: entities.VisualIdle, Facing: entities.Left}: animation.NewAnimation(
 					0,
+					4,
+					1,
+					4.0,
+				),
+				{State: entities.VisualIdle, Facing: entities.Right}: animation.NewAnimation(
 					6,
+					10,
 					1,
 					4.0,
 				),
-				{State: entities.Idle, Facing: entities.Right}: animation.NewAnimation(
-					8,
-					14,
+				{State: entities.VisualJumping, Facing: entities.Left}: animation.NewAnimation(
+					12,
+					15,
 					1,
-					4.0,
+					2.0,
 				),
-				{State: entities.Jumping, Facing: entities.Left}: animation.NewAnimation(
-					16,
+				{State: entities.VisualJumping, Facing: entities.Right}: animation.NewAnimation(
+					18,
 					21,
 					1,
 					2.0,
 				),
-				{State: entities.Jumping, Facing: entities.Right}: animation.NewAnimation(
-					24,
-					29,
+				{State: entities.VisualRunning, Facing: entities.Left}: animation.NewAnimation(
+					16,
+					17,
 					1,
-					2.0,
+					4.0,
 				),
-				{State: entities.Running, Facing: entities.Left}: animation.NewAnimation(
+				{State: entities.VisualRunning, Facing: entities.Right}: animation.NewAnimation(
 					22,
 					23,
 					1,
 					4.0,
 				),
-				{State: entities.Running, Facing: entities.Right}: animation.NewAnimation(
+				{State: entities.VisualHoldingBallIdle, Facing: entities.Left}: animation.NewAnimation(
+					24,
+					29,
+					1,
+					4.0,
+				),
+				{State: entities.VisualHoldingBallIdle, Facing: entities.Right}: animation.NewAnimation(
 					30,
-					31,
+					35,
+					1,
+					4.0,
+				),
+				{State: entities.VisualHoldingBallJumping, Facing: entities.Left}: animation.NewAnimation(
+					36,
+					41,
+					1,
+					4.0,
+				),
+				{State: entities.VisualHoldingBallJumping, Facing: entities.Right}: animation.NewAnimation(
+					42,
+					47,
+					1,
+					4.0,
+				),
+				{State: entities.VisualHoldingBallRunning, Facing: entities.Left}: animation.NewAnimation(
+					24,
+					29,
+					1,
+					4.0,
+				),
+				{State: entities.VisualHoldingBallRunning, Facing: entities.Right}: animation.NewAnimation(
+					30,
+					35,
 					1,
 					4.0,
 				),
@@ -118,11 +155,11 @@ func NewGame() *Game {
 		},
 		ball: &entities.Ball{
 			Sprite: &entities.Sprite{
-				Img:     ballImg,
-				X:       float64(ballSpawnX),
-				Y:       float64(ballSpawnY),
-				XOffset: -32,
-				YOffset: -32,
+				Img:          ballImg,
+				X:            float64(ballSpawnX),
+				Y:            float64(ballSpawnY),
+				RightXOffset: -32,
+				DownYOffset:  -32,
 			}, Active: true,
 		},
 		tilemapJSON:       tilemapJSON,
@@ -136,7 +173,7 @@ func NewGame() *Game {
 func (g *Game) Update() error {
 
 	if g.ball.Active && g.player.Sprite.Bounds().Overlaps(g.ball.Sprite.Bounds()) {
-		g.player.SubState = entities.HoldingTheBall
+		g.player.HoldingBall = true
 		g.ball.Active = false
 		fmt.Println("BALL AND PLAYER HIT")
 	}
@@ -189,7 +226,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		}
 	}
 
-	opts.GeoM.Scale(constants.PlayerBallScale, constants.PlayerBallScale)
+	opts.GeoM.Scale(shared.PlayerBallScale, shared.PlayerBallScale)
 	opts.GeoM.Translate(g.player.X, g.player.Y)
 
 	// PlayerSpeed = 5
@@ -207,7 +244,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	opts.GeoM.Reset()
 
 	if g.ball.Active {
-		opts.GeoM.Scale(constants.PlayerBallScale, constants.PlayerBallScale)
+		opts.GeoM.Scale(shared.PlayerBallScale, shared.PlayerBallScale)
 		opts.GeoM.Translate(g.ball.X, g.ball.Y)
 
 		screen.DrawImage(
@@ -254,5 +291,5 @@ func (g *Game) Draw(screen *ebiten.Image) {
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
-	return constants.ScreenWidth, constants.ScreenHeight
+	return shared.ScreenWidth, shared.ScreenHeight
 }

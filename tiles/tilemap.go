@@ -6,7 +6,7 @@ import (
 	"os"
 	"path"
 
-	"github.com/Ethea2/feedball/constants"
+	"github.com/Ethea2/feedball/shared"
 )
 
 // data we want for one layer in our list of layers
@@ -59,14 +59,14 @@ func NewTilemapJSON(filepath string) (*TilemapJSON, error) {
 }
 
 func TileToPixel(tileX, tileY int) (x, y int) {
-	x = tileX * constants.TileSize
-	y = tileY * constants.TileSize
+	x = tileX * shared.TileSize
+	y = tileY * shared.TileSize
 	return
 }
 
 func TileToRect(tileX, tileY int) image.Rectangle {
 	x, y := TileToPixel(tileX, tileY)
-	return image.Rect(x, y, x+constants.TileSize, y+constants.TileSize)
+	return image.Rect(x, y, x+shared.TileSize, y+shared.TileSize)
 }
 
 func (t *TilemapJSON) GenColliders() []image.Rectangle {
@@ -74,8 +74,8 @@ func (t *TilemapJSON) GenColliders() []image.Rectangle {
 	for _, layer := range t.Layers {
 		for index, id := range layer.Data {
 			if id != 0 {
-				tileX := index % constants.MapWidth
-				tileY := index / constants.MapWidth
+				tileX := index % shared.MapWidth
+				tileY := index / shared.MapWidth
 				colliders = append(colliders, TileToRect(tileX, tileY))
 			}
 		}

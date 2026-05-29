@@ -1,4 +1,4 @@
-package constants
+package shared
 
 const (
 	TileSize        = 32

@@ -2,20 +2,15 @@ package entities
 
 import (
 	"image"
-	"math"
 
 	"github.com/Ethea2/feedball/animation"
-	"github.com/Ethea2/feedball/constants"
+	"github.com/Ethea2/feedball/shared"
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
-// TODO: fix player bug on substates and rethink the substate solution (could be better if we utilize separate states as bool on player actions.)
-
 type PlayerState uint8
-
 type PlayerFacing uint8
-
-type PlayerSubstate uint8
+type VisualState uint8
 
 // Enum for player states
 const (
@@ -25,10 +20,16 @@ const (
 	Jumping
 )
 
+// Enum for visual states (animation only)
 const (
-	SubIdle PlayerSubstate = iota
-	FreeFalling
-	HoldingTheBall
+	VisualIdle VisualState = iota
+	VisualRunning
+	VisualJumping
+	VisualHoldingBallIdle
+	VisualHoldingBallRunning
+	VisualHoldingBallJumping
+	VisualFreeFalling
+	VisualThrowing
 )
 
 // Enum for where player is facing
@@ -38,7 +39,7 @@ const (
 )
 
 type AnimationKey struct {
-	State  PlayerState
+	State  VisualState
 	Facing PlayerFacing
 }
 
@@ -50,11 +51,40 @@ type Player struct {
 	*Sprite
 	State               PlayerState
 	Facing              PlayerFacing
-	SubState            PlayerSubstate
 	JumpTimer           float64
 	Animations          map[AnimationKey]*animation.Animation
 	movementRestricted  bool
 	IsAffectedByGravity bool
+	FreeFalling         bool
+	HoldingBall         bool
+	Throwing            bool
+}
+
+func (p *Player) CurrentVisualState() VisualState {
+	switch {
+	case p.Throwing:
+		return VisualThrowing
+	case p.FreeFalling:
+		return VisualFreeFalling
+	default:
+		switch p.State {
+		case Running:
+			if p.HoldingBall {
+				return VisualHoldingBallRunning
+			}
+			return VisualRunning
+		case Jumping:
+			if p.HoldingBall {
+				return VisualHoldingBallJumping
+			}
+			return VisualJumping
+		default:
+			if p.HoldingBall {
+				return VisualHoldingBallIdle
+			}
+			return VisualIdle
+		}
+	}
 }
 
 func (p *Player) Jump() {
@@ -64,16 +94,14 @@ func (p *Player) Jump() {
 	p.State = Jumping
 	p.JumpTimer = 1.0
 	p.Dy = -15.0
-
 }
 
 func (p *Player) ActiveAnimation() *animation.Animation {
-	key := AnimationKey{State: p.State, Facing: p.Facing}
+	key := AnimationKey{State: p.CurrentVisualState(), Facing: p.Facing}
 	if anim, ok := p.Animations[key]; ok {
 		return anim
 	}
-
-	fallback := AnimationKey{State: Idle, Facing: p.Facing}
+	fallback := AnimationKey{State: VisualIdle, Facing: p.Facing}
 	return p.Animations[fallback]
 }
 
@@ -85,11 +113,12 @@ func (p *Player) UpdateAnimation() {
 }
 
 func (p *Player) isGrounded(wallsAndFloors []image.Rectangle) bool {
+	bounds := p.Bounds()
 	feetRect := image.Rect(
-		int(math.Round(p.X)),
-		int(math.Round(p.Y))+p.Bounds().Dy(), // bottom edge using Bounds
-		int(math.Round(p.X))+p.Bounds().Dx(),
-		int(math.Round(p.Y))+p.Bounds().Dy()+1, // one pixel below
+		bounds.Min.X,
+		bounds.Max.Y,
+		bounds.Max.X,
+		bounds.Max.Y+1,
 	)
 	for _, collider := range wallsAndFloors {
 		if collider.Overlaps(feetRect) {
@@ -101,15 +130,14 @@ func (p *Player) isGrounded(wallsAndFloors []image.Rectangle) bool {
 
 func (p *Player) Update(wallsAndFloors []image.Rectangle, playerInput PlayerInput) {
 	p.Dx = 0.0
-
 	if ebiten.IsKeyPressed(playerInput.Left) && !p.movementRestricted {
-		p.Dx = -constants.PlayerSpeed
+		p.Dx = -shared.PlayerSpeed
 		p.Facing = Left
 		if p.State != Jumping {
 			p.State = Running
 		}
 	} else if ebiten.IsKeyPressed(playerInput.Right) && !p.movementRestricted {
-		p.Dx = constants.PlayerSpeed
+		p.Dx = shared.PlayerSpeed
 		p.Facing = Right
 		if p.State != Jumping {
 			p.State = Running
@@ -118,39 +146,38 @@ func (p *Player) Update(wallsAndFloors []image.Rectangle, playerInput PlayerInpu
 		p.State = Idle
 	}
 
-	if ebiten.IsKeyPressed(playerInput.Jump) && p.SubState != FreeFalling {
+	if ebiten.IsKeyPressed(playerInput.Jump) && !p.FreeFalling {
 		p.Jump()
 	}
 
 	if p.IsAffectedByGravity {
-		p.Dy += constants.Gravity
+		p.Dy += shared.Gravity
 	}
 
 	p.X += p.Dx
 	p.Sprite.CheckCollisionHorizontal(p.Sprite, wallsAndFloors)
-
 	p.Y += p.Dy
 	p.Sprite.CheckCollisionVertical(p.Sprite, wallsAndFloors)
 
-	if p.isGrounded(wallsAndFloors) {
-		if p.State == Jumping || p.SubState == FreeFalling {
+	if p.State == Jumping || p.FreeFalling {
+		if p.isGrounded(wallsAndFloors) {
 			p.State = Idle
 			p.movementRestricted = false
 			p.IsAffectedByGravity = true
-			if p.SubState == HoldingTheBall || p.SubState == FreeFalling {
-				p.SubState = SubIdle
+			if p.FreeFalling {
+				p.FreeFalling = false
 			}
 		}
 	}
 
-	//Handle freefalling when player not holding ball and is jumping. Should not be accessed if player is already free falling
-	if p.SubState != HoldingTheBall && p.State == Jumping && p.SubState != FreeFalling {
+	if !p.HoldingBall && p.State == Jumping && !p.FreeFalling {
 		if ebiten.IsKeyPressed(playerInput.Down) {
-			p.SubState = FreeFalling
+			p.FreeFalling = true
 			p.movementRestricted = true
 			p.IsAffectedByGravity = false
-			p.Dy += constants.PlayerSpeed * 2
+			p.Dy += shared.PlayerSpeed * 2
 		}
 	}
+
 	p.UpdateAnimation()
 }
