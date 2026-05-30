@@ -202,7 +202,7 @@ func (g *Game) Update() error {
 		Down:  ebiten.KeyDown,
 	}
 	// Ball pickup
-	if g.ball.State == entities.Initial && g.player.Sprite.Bounds().Overlaps(g.ball.Sprite.Bounds()) {
+	if (g.ball.State == entities.Initial || g.ball.State == entities.BallInPlay) && g.ball.ThrownBy != g.player && g.player.Sprite.Bounds().Overlaps(g.ball.Sprite.Bounds()) {
 		g.player.HoldingBall = true
 		g.ball.State = entities.PlayerHeld
 	}
@@ -223,9 +223,10 @@ func (g *Game) Update() error {
 		dir := g.player.FinishThrow()
 		g.ball.Direction = dir
 		g.ball.Speed = shared.BallInitialSpeed
+		g.ball.State = entities.BallInPlay
 		g.ball.X = g.player.X
 		g.ball.Y = g.player.Y
-		g.ball.State = entities.PlayerThrown
+		g.ball.ThrownBy = g.player
 	}
 
 	// Ball movement
@@ -300,7 +301,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 	opts.GeoM.Reset()
 
-	if g.ball.IsActive() {
+	if !(g.ball.State == entities.PlayerHeld) {
 		opts.GeoM.Scale(shared.PlayerBallScale, shared.PlayerBallScale)
 		opts.GeoM.Translate(g.ball.X, g.ball.Y)
 		screen.DrawImage(
@@ -333,17 +334,19 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		true,
 	)
 
-	ballBounds := g.ball.Bounds()
-	vector.StrokeRect(
-		screen,
-		float32(ballBounds.Min.X),
-		float32(ballBounds.Min.Y),
-		float32(ballBounds.Dx()),
-		float32(ballBounds.Dy()),
-		1.0,
-		color.RGBA{0, 255, 0, 255}, // green to distinguish from wall colliders
-		true,
-	)
+	if !(g.ball.State == entities.PlayerHeld) {
+		ballBounds := g.ball.Bounds()
+		vector.StrokeRect(
+			screen,
+			float32(ballBounds.Min.X),
+			float32(ballBounds.Min.Y),
+			float32(ballBounds.Dx()),
+			float32(ballBounds.Dy()),
+			1.0,
+			color.RGBA{0, 255, 0, 255}, // green to distinguish from wall colliders
+			true,
+		)
+	}
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {

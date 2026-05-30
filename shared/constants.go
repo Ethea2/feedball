@@ -9,6 +9,6 @@ const (
 	PlayerSpeed      = 10
 	Gravity          = 0.5
 	PlayerBallScale  = 2.0
-	BallInitialSpeed = 8.0
-	ThrowFrameSpeed  = 4.0
+	BallInitialSpeed = 1
+	ThrowFrameSpeed  = 2.0
 )

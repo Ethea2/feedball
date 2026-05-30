@@ -233,7 +233,7 @@ func (p *Player) Update(wallsAndFloors []image.Rectangle, playerInput PlayerInpu
 		p.State = Idle
 	}
 
-	if ebiten.IsKeyPressed(playerInput.Jump) && !p.FreeFalling {
+	if ebiten.IsKeyPressed(playerInput.Jump) && !p.FreeFalling && !p.movementRestricted {
 		p.Jump()
 	}
 

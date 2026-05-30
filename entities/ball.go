@@ -7,7 +7,7 @@ type BallState uint8
 const (
 	Initial BallState = iota
 	PlayerHeld
-	PlayerThrown
+	BallInPlay
 )
 
 type Ball struct {
@@ -15,14 +15,15 @@ type Ball struct {
 	State     BallState
 	Speed     float64
 	Direction shared.Direction
+	ThrownBy  *Player
 }
 
 func (b *Ball) IsActive() bool {
-	return b.State == PlayerThrown
+	return b.State == BallInPlay
 }
 
 func (b *Ball) Update() {
-	if b.State != PlayerThrown {
+	if b.State != BallInPlay {
 		return
 	}
 
