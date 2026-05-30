@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"image"
 	"image/color"
 	"log"
@@ -24,6 +23,8 @@ type Game struct {
 	tilesets          []tiles.Tileset
 	tilemapImg        *ebiten.Image
 	wallsAndFloors    []image.Rectangle
+	releaseFrames     map[shared.Direction][2]int
+	prevShootPressed  bool
 }
 
 func NewGame() *Game {
@@ -55,7 +56,7 @@ func NewGame() *Game {
 		log.Fatal(err)
 	}
 
-	playerSpriteSheet := spritesheet.NewSpriteSheet(6, 8, 32)
+	playerSpriteSheet := spritesheet.NewSpriteSheet(12, 8, 32)
 
 	ballImg, _, err := ebitenutil.NewImageFromFile("./assets/images/Ball.png")
 
@@ -85,52 +86,52 @@ func NewGame() *Game {
 					4.0,
 				),
 				{State: entities.VisualIdle, Facing: entities.Right}: animation.NewAnimation(
-					6,
-					10,
+					12,
+					16,
 					1,
 					4.0,
 				),
 				{State: entities.VisualJumping, Facing: entities.Left}: animation.NewAnimation(
-					12,
-					15,
+					8,
+					10,
 					1,
 					2.0,
 				),
 				{State: entities.VisualJumping, Facing: entities.Right}: animation.NewAnimation(
-					18,
 					21,
+					23,
 					1,
 					2.0,
 				),
 				{State: entities.VisualRunning, Facing: entities.Left}: animation.NewAnimation(
-					16,
-					17,
+					6,
+					7,
 					1,
 					4.0,
 				),
 				{State: entities.VisualRunning, Facing: entities.Right}: animation.NewAnimation(
-					22,
-					23,
+					18,
+					19,
 					1,
 					4.0,
 				),
 				{State: entities.VisualHoldingBallIdle, Facing: entities.Left}: animation.NewAnimation(
 					24,
-					29,
+					28,
 					1,
 					4.0,
 				),
 				{State: entities.VisualHoldingBallIdle, Facing: entities.Right}: animation.NewAnimation(
-					30,
-					35,
+					36,
+					40,
 					1,
 					4.0,
 				),
 				{State: entities.VisualHoldingBallJumping, Facing: entities.Left}: animation.NewAnimation(
-					36,
-					41,
+					32,
+					35,
 					1,
-					4.0,
+					2.0,
 				),
 				{State: entities.VisualHoldingBallJumping, Facing: entities.Right}: animation.NewAnimation(
 					42,
@@ -139,16 +140,28 @@ func NewGame() *Game {
 					4.0,
 				),
 				{State: entities.VisualHoldingBallRunning, Facing: entities.Left}: animation.NewAnimation(
-					24,
-					29,
+					30,
+					31,
 					1,
 					4.0,
 				),
 				{State: entities.VisualHoldingBallRunning, Facing: entities.Right}: animation.NewAnimation(
-					30,
-					35,
+					42,
+					43,
 					1,
 					4.0,
+				),
+				{State: entities.VisualThrowingWindup, Facing: entities.Left}: animation.NewAnimation(
+					48,
+					53,
+					1,
+					shared.ThrowFrameSpeed,
+				),
+				{State: entities.VisualThrowingWindup, Facing: entities.Right}: animation.NewAnimation(
+					60,
+					65,
+					1,
+					shared.ThrowFrameSpeed,
 				),
 			},
 			IsAffectedByGravity: true,
@@ -160,33 +173,68 @@ func NewGame() *Game {
 				Y:            float64(ballSpawnY),
 				RightXOffset: -32,
 				DownYOffset:  -32,
-			}, Active: true,
+			},
+			State: entities.Initial,
+			Speed: shared.BallInitialSpeed,
 		},
 		tilemapJSON:       tilemapJSON,
 		tilesets:          tilesets,
 		tilemapImg:        tilemapImg,
 		wallsAndFloors:    wallsAndFloors,
 		playerSpriteSheet: playerSpriteSheet,
+		releaseFrames: map[shared.Direction][2]int{
+			shared.NorthEast: {84, 87},
+			shared.East:      {76, 79},
+			shared.SouthEast: {88, 91},
+			shared.NorthWest: {54, 57},
+			shared.West:      {66, 69},
+			shared.SouthWest: {72, 75},
+		},
 	}
 }
 
 func (g *Game) Update() error {
-
-	if g.ball.Active && g.player.Sprite.Bounds().Overlaps(g.ball.Sprite.Bounds()) {
-		g.player.HoldingBall = true
-		g.ball.Active = false
-		fmt.Println("BALL AND PLAYER HIT")
+	playerInput := entities.PlayerInput{
+		Jump:  ebiten.KeyUp,
+		Shoot: ebiten.KeyEnter,
+		Left:  ebiten.KeyLeft,
+		Right: ebiten.KeyRight,
+		Down:  ebiten.KeyDown,
 	}
+	// Ball pickup
+	if g.ball.State == entities.Initial && g.player.Sprite.Bounds().Overlaps(g.ball.Sprite.Bounds()) {
+		g.player.HoldingBall = true
+		g.ball.State = entities.PlayerHeld
+	}
+
+	// Throw initiation
+	shootPressed := ebiten.IsKeyPressed(playerInput.Shoot)
+	if g.player.HoldingBall && !g.player.Throwing && shootPressed && !g.prevShootPressed {
+		if g.player.Facing == entities.Left {
+			g.player.StartThrow(48, 53)
+		} else {
+			g.player.StartThrow(60, 65)
+		}
+	}
+	g.prevShootPressed = shootPressed
+
+	// Throw completion
+	if g.player.Throwing && g.player.ThrowAnimation != nil && g.player.ThrowAnimation.IsDone() {
+		dir := g.player.FinishThrow()
+		g.ball.Direction = dir
+		g.ball.Speed = shared.BallInitialSpeed
+		g.ball.X = g.player.X
+		g.ball.Y = g.player.Y
+		g.ball.State = entities.PlayerThrown
+	}
+
+	// Ball movement
+	g.ball.Update()
 
 	g.player.Update(
 		g.wallsAndFloors,
-		entities.PlayerInput{
-			Jump:  ebiten.KeyUp,
-			Shoot: ebiten.KeyShiftLeft,
-			Left:  ebiten.KeyLeft,
-			Right: ebiten.KeyRight,
-			Down:  ebiten.KeyDown,
-		},
+		playerInput,
+		g.releaseFrames,
 	)
 
 	return nil
@@ -229,24 +277,32 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	opts.GeoM.Scale(shared.PlayerBallScale, shared.PlayerBallScale)
 	opts.GeoM.Translate(g.player.X, g.player.Y)
 
-	// PlayerSpeed = 5
-	anim := g.player.ActiveAnimation()
-	if anim != nil {
-		frame := anim.Frame() // whatever your Animation exposes
+	if g.player.Throwing && g.player.ThrowAnimation != nil {
+		frame := g.player.ThrowAnimation.Frame()
 		screen.DrawImage(
 			g.player.Img.SubImage(
 				g.playerSpriteSheet.Rect(frame),
 			).(*ebiten.Image),
 			&opts,
 		)
+	} else {
+		anim := g.player.ActiveAnimation()
+		if anim != nil {
+			frame := anim.Frame()
+			screen.DrawImage(
+				g.player.Img.SubImage(
+					g.playerSpriteSheet.Rect(frame),
+				).(*ebiten.Image),
+				&opts,
+			)
+		}
 	}
 
 	opts.GeoM.Reset()
 
-	if g.ball.Active {
+	if g.ball.IsActive() {
 		opts.GeoM.Scale(shared.PlayerBallScale, shared.PlayerBallScale)
 		opts.GeoM.Translate(g.ball.X, g.ball.Y)
-
 		screen.DrawImage(
 			g.ball.Img,
 			&opts,

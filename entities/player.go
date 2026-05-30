@@ -1,6 +1,7 @@
 package entities
 
 import (
+	"fmt"
 	"image"
 
 	"github.com/Ethea2/feedball/animation"
@@ -29,7 +30,13 @@ const (
 	VisualHoldingBallRunning
 	VisualHoldingBallJumping
 	VisualFreeFalling
-	VisualThrowing
+	VisualThrowingWindup
+	VisualThrowingNorthEast
+	VisualThrowingEast
+	VisualThrowingSouthEast
+	VisualThrowingNorthWest
+	VisualThrowingWest
+	VisualThrowingSouthWest
 )
 
 // Enum for where player is facing
@@ -53,6 +60,8 @@ type Player struct {
 	Facing              PlayerFacing
 	JumpTimer           float64
 	Animations          map[AnimationKey]*animation.Animation
+	ThrowAnimation      *animation.ThrowAnimation
+	ThrowDirection      shared.Direction
 	movementRestricted  bool
 	IsAffectedByGravity bool
 	FreeFalling         bool
@@ -63,7 +72,7 @@ type Player struct {
 func (p *Player) CurrentVisualState() VisualState {
 	switch {
 	case p.Throwing:
-		return VisualThrowing
+		return VisualThrowingWindup
 	case p.FreeFalling:
 		return VisualFreeFalling
 	default:
@@ -87,6 +96,23 @@ func (p *Player) CurrentVisualState() VisualState {
 	}
 }
 
+func (p *Player) ActiveThrowVisualState() VisualState {
+	switch p.ThrowDirection {
+	case shared.NorthEast:
+		return VisualThrowingNorthEast
+	case shared.SouthEast:
+		return VisualThrowingSouthEast
+	case shared.NorthWest:
+		return VisualThrowingNorthWest
+	case shared.SouthWest:
+		return VisualThrowingSouthWest
+	case shared.West:
+		return VisualThrowingWest
+	default:
+		return VisualThrowingEast
+	}
+}
+
 func (p *Player) Jump() {
 	if p.State == Jumping {
 		return
@@ -96,7 +122,58 @@ func (p *Player) Jump() {
 	p.Dy = -15.0
 }
 
+func (p *Player) StartThrow(windupFirst, windupLast int) {
+	p.Throwing = true
+	p.movementRestricted = true
+	p.IsAffectedByGravity = false
+	p.Dy = 0
+	p.Dx = 0
+	p.ThrowAnimation = animation.NewThrowAnimation(
+		windupFirst, windupLast,
+		0, 0, // release frames set later via SetRelease
+		shared.ThrowFrameSpeed,
+	)
+}
+
+func (p *Player) SampleThrowDirection(playerInput PlayerInput) shared.Direction {
+	up := ebiten.IsKeyPressed(playerInput.Jump)
+	down := ebiten.IsKeyPressed(playerInput.Down)
+
+	if p.Facing == Right {
+		switch {
+		case up:
+			return shared.NorthEast
+		case down:
+			return shared.SouthEast
+		default:
+			return shared.East
+		}
+	} else {
+		switch {
+		case up:
+			return shared.NorthWest
+		case down:
+			return shared.SouthWest
+		default:
+			return shared.West
+		}
+	}
+}
+
+func (p *Player) FinishThrow() shared.Direction {
+	dir := p.ThrowDirection
+	p.Throwing = false
+	p.HoldingBall = false
+	p.movementRestricted = false
+	p.IsAffectedByGravity = true
+	p.ThrowAnimation = nil
+	return dir
+}
+
 func (p *Player) ActiveAnimation() *animation.Animation {
+	if p.Throwing {
+		return nil
+	}
 	key := AnimationKey{State: p.CurrentVisualState(), Facing: p.Facing}
 	if anim, ok := p.Animations[key]; ok {
 		return anim
@@ -105,7 +182,16 @@ func (p *Player) ActiveAnimation() *animation.Animation {
 	return p.Animations[fallback]
 }
 
-func (p *Player) UpdateAnimation() {
+func (p *Player) UpdateAnimation(playerInput PlayerInput, releaseFrames map[shared.Direction][2]int) {
+	if p.Throwing && p.ThrowAnimation != nil {
+		if p.ThrowAnimation.IsOnLastWindupFrame() {
+			p.ThrowDirection = p.SampleThrowDirection(playerInput)
+			frames := releaseFrames[p.ThrowDirection]
+			p.ThrowAnimation.SetRelease(frames[0], frames[1])
+		}
+		p.ThrowAnimation.Update()
+		return
+	}
 	anim := p.ActiveAnimation()
 	if anim != nil {
 		anim.Update()
@@ -128,7 +214,8 @@ func (p *Player) isGrounded(wallsAndFloors []image.Rectangle) bool {
 	return false
 }
 
-func (p *Player) Update(wallsAndFloors []image.Rectangle, playerInput PlayerInput) {
+func (p *Player) Update(wallsAndFloors []image.Rectangle, playerInput PlayerInput, releaseFrames map[shared.Direction][2]int) {
+	fmt.Println(p.CurrentVisualState())
 	p.Dx = 0.0
 	if ebiten.IsKeyPressed(playerInput.Left) && !p.movementRestricted {
 		p.Dx = -shared.PlayerSpeed
@@ -179,5 +266,5 @@ func (p *Player) Update(wallsAndFloors []image.Rectangle, playerInput PlayerInpu
 		}
 	}
 
-	p.UpdateAnimation()
+	p.UpdateAnimation(playerInput, releaseFrames)
 }
