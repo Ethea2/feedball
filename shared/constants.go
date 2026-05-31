@@ -9,6 +9,7 @@ const (
 	PlayerSpeed      = 10
 	Gravity          = 0.5
 	PlayerBallScale  = 2.0
-	BallInitialSpeed = 1
+	BallInitialSpeed = 11
 	ThrowFrameSpeed  = 2.0
+	MaxBallSpeed     = TileSize - 1
 )

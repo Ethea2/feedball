@@ -230,7 +230,7 @@ func (g *Game) Update() error {
 	}
 
 	// Ball movement
-	g.ball.Update()
+	g.ball.Update(g.wallsAndFloors)
 
 	g.player.Update(
 		g.wallsAndFloors,
