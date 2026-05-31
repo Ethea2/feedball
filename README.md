@@ -1,79 +1,111 @@
-# FeedBall 🏈
+# Feedball
 
-A 2D platformer game built with Go and [Ebitengine](https://ebitengine.org/).
+A 1v1 competitive action game where two players battle it out in a frog terrarium, trying to feed the opposing player's frog a poisonous fly — before their own frog gets fed first.
+
+---
 
 ## Overview
 
-FeedBall is a tile-based 2D platformer where you control a character across a map loaded from a [Tiled](https://www.mapeditor.org/) JSON file. The game features tile rendering, collision detection, and basic player physics including jumping and gravity.
+Feedball is a fast-paced, physics-driven 1v1 game built around one ball, two frogs, and a whole lot of ricochet. Players take turns as the **Attacker** and **Defender**, shooting a ball across a multi-level arena, working angles off walls to open and score into the opposing frog's mouth.
 
-## Features
+The first player to score 5 goals wins.
 
-- Tile-based map rendering from Tiled `.json` map files
-- Support for both uniform (spritesheet) and dynamic (individual image) tilesets
-- Horizontal and vertical collision detection
-- Player jumping with a timer-based arc
-- Gravity simulation
-- Debug collider outlines rendered in-game
+---
 
-## Project Structure
+## Lore
+
+At Shaw Tower unit 1507, an evil wizard shrinks two roommates to insect size and traps them in a frog terrarium. The only way back to normal size? Defeat each other's frog.
+
+---
+
+## Gameplay
+
+### Roles
+At any given moment, one player is the **Attacker** (ball in hand) and the other is the **Defender**. Roles shift dynamically as possession changes.
+
+### The Arena
+A flat-bottomed plane with platforms of varying heights. Walls are everywhere — and every wall is a potential angle.
+
+---
+
+## The Ball
+
+The ball travels in a straight line, unaffected by gravity, and ricochets off walls at right angles. It slows to a capped speed after 3 bounces.
+
+### Ball States
+
+| State | Description |
+|---|---|
+| **INPLAY** | Held by the Attacker. Bounces off the Defender like a wall. Becomes **LIVE** after 2 bounces. |
+| **LIVE** | No owner. First player to touch it gains possession and becomes the Attacker. |
+| **GROSS** | Spit out by the frog. Cannot be grabbed. Knocks back and briefly slows any player it hits. Becomes **LIVE** after its first wall bounce. |
+
+---
+
+## Scoring & The Frog
+
+The **goal** is the frog's mouth — about 4–5 ball widths wide.
+
+- The mouth is naturally **closed** and acts as a wall.
+- Any ball contact opens the mouth for **10 seconds**.
+- Score by shooting the ball into the open mouth → **–1 HP** to the frog.
+- The frog has **5 HP**. First player to bring the opposing frog to 0 wins.
+
+### Frog Behavior
+- If the Attacker gets **too close** to an open frog mouth, the frog gets scared and **snaps shut**. Get creative with your angles.
+- On a successful goal (except the final one), the frog **eats** the ball and **spits it out** as a **GROSS** ball — aimed directly at the Attacker who just scored.
+
+---
+
+## Controls & Mechanics
+
+### Movement
+- **Run** to move around the arena.
+- **Jump** to block INPLAY balls or grab LIVE balls mid-air.
+- Movement speed and jump height are **slightly reduced** when holding the ball.
+
+### Shooting
+The Attacker can shoot in 6 directions:
 
 ```
-feedball/
-├── main.go                  # Entry point, collision helpers
-├── game.go                  # Game loop (Update, Draw, Layout)
-├── constants/
-│   └── constants.go         # Screen size, tile size, player speed
-├── entities/
-│   ├── sprite.go            # Base sprite struct (position, velocity, image)
-│   └── player.go            # Player struct, states, jump logic
-├── tiles/
-│   ├── tilemap.go           # Tiled JSON parsing, collider generation
-│   └── tileset.go           # Tileset loading (uniform & dynamic)
-└── assets/
-    ├── images/              # Spritesheets and terrain images
-    └── maps/                # Tiled map files (.json, .tsj, .tmj)
+↖  ↑  ↗
+←     →
+↙  ↓  ↘
 ```
 
-## Prerequisites
+### Floating
+When the Attacker shoots, there's a brief input window during which they **float** before falling normally. Use this to fine-tune your shot direction.
 
-- [Go](https://go.dev/) 1.21+
-- Ebitengine dependencies (handled automatically via `go mod`)
+### Fast Fall
+The **Defender** can press **↓** to fast fall — dropping faster than normal to reposition quickly.
 
-On Linux, Ebitengine requires some system libraries. Install them with:
+---
 
-```bash
-sudo apt install libc6-dev libglu1-mesa-dev libgl1-mesa-dev libxcursor-dev libxi-dev libxinerama-dev libxrandr-dev libxxf86vm-dev libasound2-dev pkg-config
+## Game Start — Jump Ball
+
+At the start of each game:
+
+1. The ball spawns **LIVE** in the center of the arena.
+2. Both players are locked in place on opposite sides.
+3. After a **random 3–6 second** delay, the ball jumps upward.
+4. Movement unlocks — the first player to reach and grab the ball becomes the Attacker.
+
+---
+
+## Sample Round Loop
+
+```
+Grab the jump ball
+→ Maneuver and shoot at the opposing frog
+→ Frog mouth opens
+→ Shoot the ball into the open mouth (–1 HP)
+→ Frog spits out a GROSS ball — dodge it
+→ Compete for possession
+→ Repeat until the opposing frog hits 0 HP
 ```
 
-## Getting Started
+---
 
-```bash
-# Clone the repository
-git clone https://github.com/Ethea2/feedball.git
-cd feedball
+## Win Condition
 
-# Download dependencies
-go mod tidy
-
-# Run the game
-go run .
-```
-
-## Controls
-
-| Key | Action |
-|-----|--------|
-| ← Left Arrow | Move left |
-| → Right Arrow | Move right |
-| ↑ Up Arrow | Jump |
-| ↓ Down Arrow | Move down |
-
-## Map Format
-
-Maps are created with [Tiled Map Editor](https://www.mapeditor.org/) and exported as JSON. Place map files in `assets/maps/` and tileset files (`.tsj`) alongside them. The tilemap loader resolves tileset paths relative to the `assets/maps/` directory.
-
-Tiles with a non-zero ID are treated as solid and generate collision rectangles automatically.
-
-## Dependencies
-
-- [Ebitengine v2](https://github.com/hajimehoshi/ebiten) — 2D game engine for Go
+Deplete the opposing frog's health bar from **5 to 0**. First to 5 goals wins the game.

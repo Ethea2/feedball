@@ -17,6 +17,15 @@ func (s *SpriteSheet) Rect(index int) image.Rectangle {
 	)
 }
 
+func (s *SpriteSheet) Rect64(index int) image.Rectangle {
+	x := (index % s.WidthInTiles) * (s.Tilesize * 2)
+	y := (index / s.WidthInTiles) * (s.Tilesize * 2)
+
+	return image.Rect(
+		x, y, x+(s.Tilesize*2), y+(s.Tilesize*2),
+	)
+}
+
 func NewSpriteSheet(w, h, t int) *SpriteSheet {
 	return &SpriteSheet{
 		w, h, t,
