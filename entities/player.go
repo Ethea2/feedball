@@ -1,7 +1,6 @@
 package entities
 
 import (
-	"fmt"
 	"image"
 
 	"github.com/Ethea2/feedball/animation"
@@ -215,7 +214,6 @@ func (p *Player) isGrounded(wallsAndFloors []image.Rectangle) bool {
 }
 
 func (p *Player) Update(wallsAndFloors []image.Rectangle, playerInput PlayerInput, releaseFrames map[shared.Direction][2]int) {
-	fmt.Println(p.CurrentVisualState())
 	p.Dx = 0.0
 	if ebiten.IsKeyPressed(playerInput.Left) && !p.movementRestricted {
 		p.Dx = -shared.PlayerSpeed
